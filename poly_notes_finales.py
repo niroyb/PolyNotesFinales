@@ -1,13 +1,13 @@
-# -*- coding: cp1252 -*-
-import requests
-import os
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 import ConfigParser
-import lxml
-from lxml.cssselect import CSSSelector
 import gmail
+import requests
+from lxml import etree, cssselect
+import os
 import time
 
-#Session for moodle
 SESSION = None
 SKELETON = """<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Results</title></head><body></body></html>"""
 SAVE_LOC = 'results.html'
@@ -30,21 +30,19 @@ def dossier_login():
     return response
 
 def select_elements(dom, css_selector):
-    selector = CSSSelector(css_selector)
+    selector = cssselect.CSSSelector(css_selector)
     elements = selector(dom)
     return elements
 
 def extract_result_html(html):
-    dom = lxml.etree.HTML(html)
+    dom = etree.HTML(html)
     table_notes = select_elements(dom, 'table')[2]
     for e in select_elements(table_notes, 'font'):
         e.attrib.clear()
-
-    mini_dom = lxml.etree.HTML(SKELETON)
+    mini_dom = etree.HTML(SKELETON)
     body = select_elements(mini_dom, 'body')[0]
     body.append(table_notes)
-
-    return lxml.etree.tostring(mini_dom, pretty_print=True)
+    return etree.tostring(mini_dom, pretty_print=True)
 
 def send_mail(html):
     user, password = get_config('Gmail', ['email', 'password'])
@@ -65,7 +63,7 @@ def update_result(html):
         print time.ctime(), '|| No new results'
 
 def get_hidden_inputs(html):
-    dom_result_page = lxml.etree.HTML(html)
+    dom_result_page = etree.HTML(html)
     hidden_inputs = select_elements(dom_result_page, 'input[type=hidden]')
     input_data = {i.get("name"): i.get("value") for i in hidden_inputs}
     return input_data
@@ -74,8 +72,7 @@ def check_final_grades():
     r = dossier_login()
     hidden_input_data = get_hidden_inputs(r.text)
     r = SESSION.post('https://www4.polymtl.ca/servlet/PresentationResultatsTrimServlet', data=hidden_input_data)
-    result_page_html = r.text
-    result_html = extract_result_html(result_page_html)
+    result_html = extract_result_html(r.text)
     update_result(result_html)
 
 def main_loop():
